@@ -226,6 +226,7 @@ def open_history_folder():
 
 # Gradio界面
 with gr.Blocks(
+        title=f"🔥 对话机：{configs['model_name']} 🔥",
         css=".gradio-container {background-color: #252A34;}"
             ".chatbot {background-color: #08D9D6; overflow: auto;}"
             ".top-panel {display: none;}"
@@ -236,7 +237,6 @@ with gr.Blocks(
 ) as demo:
     # 标题
     gr.HTML("<h1 align='center' class='normal-text'>🔥 Ollama 对话机器人 🔥</h1>")
-
     # 聊天界面
     chatbot = gr.Chatbot(type="messages", label=f"{configs['model_name']}：", value=model_history_restart(),
                          editable="all", height=500,
@@ -261,12 +261,12 @@ with gr.Blocks(
         with gr.Row():
             prefix_input = gr.Textbox(label="历史文件前缀", value="HistoryFile", placeholder="请输入保存历史文件的前缀",
                                       lines=1, max_lines=1, container=False)
-            save_btn = gr.Button("保存历史", elem_classes="btn-normal")
-            load_btn = gr.UploadButton("读取历史", file_types=[".json"], elem_classes="btn-normal")
-            open_folder_btn = gr.Button("打开历史文件夹", elem_classes="btn-normal")
+            save_btn = gr.Button("保存历史", elem_classes="btn-normal", min_width=15)
+            load_btn = gr.UploadButton("读取历史", file_types=[".json"], elem_classes="btn-normal", min_width=15)
+            open_folder_btn = gr.Button("打开历史文件夹", elem_classes="btn-normal", min_width=15)
         with gr.Row():
             history_dropdown = gr.Dropdown(choices=["无"], value="无", label="选择历史文件", scale=3)
-            refresh_btn = gr.Button("刷新历史目录 & 清除历史", elem_classes="btn-refresh", scale=1)
+            refresh_btn = gr.Button("刷新历史目录 & 清除历史", elem_classes="btn-refresh", scale=1, min_width=35)
 
     # 模型配置
     with gr.Accordion("模型配置", open=False):
