@@ -7,6 +7,7 @@ import ollama
 import gradio as gr
 from datetime import datetime
 import webbrowser
+import shutil
 
 # 默认模型配置信息（参考）一般情况下会被./Configs.json覆盖
 configs = {
@@ -18,24 +19,6 @@ configs = {
     "uiport": "7866",
     # 模型名称
     "model_name": "qwq-7b",
-    # 系统提示词
-    "system_prompt": "## Role:\n"
-                     "我是一个乐于助人的智能助手，我精通多国语言，对科学、文学、历史、数学、哲学、艺术等文化领域了如指掌。请告诉我你的需求，我都能尽我所能地执行并给出建议。\n"
-                     "## Background:\n"
-                     "现如今，随着人们生活水平的提高，在生活中获取的信息也更加的碎片化。我作为智能助手会帮助他们整合知识信息，对知识进行过滤、筛选，最后处理成简练且易于阅读的文本进行回答，这对他们非常重要，我会努力提供更好的解读，实现更好的创新。\n"
-                     "## Goal:\n"
-                     "结合所学知识与用户所提供的上下文信息给出答案或文本生成。\n"
-                     "在必要时候把专业词汇使用通俗易懂的语言进行解读。\n"
-                     "在适当的时候可以开玩笑，但不要太过分。\n"
-                     "## Constrains:\n"
-                     "如果用户没有任何语言上的要求，则默认使用简体中文交流。\n"
-                     "避免出现过多重复文本，输出内容尽量美观，进行合适的Markdown排版，例如在特殊关键词上加粗或放大，在输出首尾需要换行。\n"
-                     "## Skills:\n"
-                     "自然科学领域专业知识，包括经典物理、量子力学、生物学、化学、数学等。\n"
-                     "社会科学领域专业知识，包括人类学、心理学、历史学、艺术学、语言学等。\n"
-                     "优秀的语言表达能力，能对专业词汇进行准确且通俗的解释，对话不失风趣幽默。",
-    # 助手第一句提示词
-    "assistant_first_prompt": "我是你的小助手，你可以叫我小助，有什么需要帮助的吗？😋",
     # 模型参数选项
     "options": {
         "temperature": 1.0,  # temperature值越高，模型创造性越强；值越低，模型相干性越强。值1为默认值。
@@ -47,16 +30,67 @@ configs = {
     }
 }
 
+# 默认系统提示词和助手第一句话
+DEFAULT_SYSTEM_PROMPT = "## Role:\n我是一个乐于助人的智能助手，我精通多国语言，对科学、文学、历史、数学、哲学、艺术等文化领域了如指掌。请告诉我你的需求，我都能尽我所能地执行并给出建议。"
+DEFAULT_ASSISTANT_FIRST_PROMPT = "我是你的小助手，你可以叫我小助，有什么需要帮助的吗？😋"
+
 # 加载配置
-with open('./Configs.json', 'r', encoding='utf-8') as f:
-    conf = json.load(f)
-    configs["host"] = conf["host"]
-    configs["port"] = conf["port"]
-    configs["uiport"] = conf["uiport"]
-    configs["model_name"] = conf["model_name"]
-    configs["system_prompt"] = conf["system_prompt"]
-    configs["assistant_first_prompt"] = conf["assistant_first_prompt"]
-    configs["options"] = conf["options"]
+def load_config():
+    config_file = './Configs.json'
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                conf = json.load(f)
+                configs.update(conf)
+        except Exception as e:
+            print(f"加载配置文件失败: {e}，使用默认配置")
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(configs, f, indent=4, ensure_ascii=False)
+    else:
+        print("配置文件不存在，创建默认配置")
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(configs, f, indent=4, ensure_ascii=False)
+
+# 加载系统提示词
+def load_system_prompt():
+    system_prompt_file = './SystemPrompt.md'
+    if os.path.exists(system_prompt_file):
+        try:
+            with open(system_prompt_file, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            print(f"加载系统提示词失败: {e}，使用默认提示词")
+            with open(system_prompt_file, 'w', encoding='utf-8') as f:
+                f.write(DEFAULT_SYSTEM_PROMPT)
+            return DEFAULT_SYSTEM_PROMPT
+    else:
+        print("系统提示词文件不存在，创建默认提示词")
+        with open(system_prompt_file, 'w', encoding='utf-8') as f:
+            f.write(DEFAULT_SYSTEM_PROMPT)
+        return DEFAULT_SYSTEM_PROMPT
+
+# 加载助手第一句话
+def load_assistant_first_prompt():
+    assistant_first_prompt_file = './AssistantFirstPrompt.md'
+    if os.path.exists(assistant_first_prompt_file):
+        try:
+            with open(assistant_first_prompt_file, 'r', encoding='utf-8') as f:
+                return f.read()
+        except Exception as e:
+            print(f"加载助手第一句话失败: {e}，使用默认提示词")
+            with open(assistant_first_prompt_file, 'w', encoding='utf-8') as f:
+                f.write(DEFAULT_ASSISTANT_FIRST_PROMPT)
+            return DEFAULT_ASSISTANT_FIRST_PROMPT
+    else:
+        print("助手第一句话文件不存在，创建默认提示词")
+        with open(assistant_first_prompt_file, 'w', encoding='utf-8') as f:
+            f.write(DEFAULT_ASSISTANT_FIRST_PROMPT)
+        return DEFAULT_ASSISTANT_FIRST_PROMPT
+
+# 加载配置和提示词
+load_config()
+system_prompt = load_system_prompt()
+assistant_first_prompt = load_assistant_first_prompt()
 
 # 对话历史
 history = []
@@ -64,13 +98,13 @@ history = []
 # 全局标志，用于中断模型输出
 stop_generation = False
 
-
-def model_history_restart():  # 模型历史重置
+# 模型历史重置
+def model_history_restart():
     history.clear()
-    history.append({"role": "system", "content": configs['system_prompt']})
-    history.append({"role": "assistant", "content": configs['assistant_first_prompt']})
+    # 添加系统提示词和助手的第一句话
+    history.append({"role": "system", "content": system_prompt})
+    history.append({"role": "assistant", "content": assistant_first_prompt})
     return history
-
 
 def chat_to_ollama(user_input):  # 与ollama聊天，返回聊天迭代器
     global stop_generation
@@ -94,24 +128,11 @@ def chat_to_ollama(user_input):  # 与ollama聊天，返回聊天迭代器
     if not stop_generation:
         history.append({"role": "assistant", "content": assistant_response})
 
-
 def stop_at_exit():  # 退出
     # 当用户退出应用时，执行控制台命令：ollama stop <模型名称>
     os.system(f'ollama stop {configs["model_name"]}')
     print('\n<- 正在退出 ->\n')
     time.sleep(1.5)
-
-
-def save_history():
-    # 生成随机文件名
-    random_str = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=6))
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"History_{random_str}_{current_time}.json"
-    # 保存历史到文件
-    with open(filename, 'w', encoding='utf-8') as f:
-        json.dump(history, f, indent=4, ensure_ascii=False)
-    return filename
-
 
 def load_history(file):
     try:
@@ -124,7 +145,6 @@ def load_history(file):
         print(f"加载历史失败: {e}")
         return None
 
-
 def update_config(temperature, top_k, top_p, repeat_penalty, seed):
     configs['options']['temperature'] = temperature
     configs['options']['top_k'] = top_k
@@ -132,15 +152,77 @@ def update_config(temperature, top_k, top_p, repeat_penalty, seed):
     configs['options']['repeat_penalty'] = repeat_penalty
     configs['options']['seed'] = seed
 
-
 def random_seed():
     return random.randint(0, 1000000000)
-
 
 def stop_generation_fn():
     global stop_generation
     stop_generation = True
 
+# 获取历史文件列表
+def get_history_files():
+    history_dir = './history'
+    if not os.path.exists(history_dir):
+        os.makedirs(history_dir)
+    files = os.listdir(history_dir)
+    return [f for f in files if f.endswith('.json')]
+
+# 读取历史文件并更新聊天记录
+def load_history_from_dropdown(selected_file):
+    if selected_file == "无":
+        # 如果选择“无”，则重置历史数组和 Chatbot 组件
+        return model_history_restart()
+    else:
+        history_dir = './history'
+        filepath = os.path.join(history_dir, f"{selected_file}.json")
+        if os.path.exists(filepath):
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    loaded_history = json.load(f)
+                history.clear()
+                history.extend(loaded_history)
+                return loaded_history
+            except Exception as e:
+                print(f"加载历史失败: {e}")
+        return None
+
+# 刷新历史文件列表
+def refresh_history_files():
+    model_history_restart()  # 重置历史数组
+    files = get_history_files()
+    # 添加默认选项“无”，并确保它是第一个选项
+    return gr.Dropdown(choices=["无"] + [os.path.splitext(f)[0] for f in files], value="无")
+
+# 保存历史时使用前缀
+def save_history_with_prefix(prefix):
+    if not prefix.strip():  # 如果前缀为空，则使用默认值
+        prefix = "History"
+    # 确保 history 目录存在
+    history_dir = '.\\history\\'
+    if not os.path.exists(history_dir):
+        os.makedirs(history_dir)
+
+    # 生成随机文件名
+    random_str = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=6))
+    current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"{prefix}_{current_time}_{random_str}.json"
+    filepath = os.path.join(history_dir, filename)
+
+    # 保存历史到文件
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(history, f, indent=4, ensure_ascii=False)
+    return filepath
+
+# 打开历史文件夹
+def open_history_folder():
+    history_dir = '.\\history\\'
+    if not os.path.exists(history_dir):
+        os.makedirs(history_dir)
+    # 打开文件夹
+    if os.name == 'nt':  # Windows
+        os.startfile(history_dir)
+    elif os.name == 'posix':  # macOS 或 Linux
+        os.system(f'open "{history_dir}"' if os.uname().sysname == 'Darwin' else f'xdg-open "{history_dir}"')
 
 # Gradio界面
 with gr.Blocks(
@@ -149,7 +231,7 @@ with gr.Blocks(
             ".top-panel {display: none;}"
             ".btn-submit {background-color: #FF2E63; height: 95px; max_height: 95px; font-size: 30px;}"
             ".btn-normal {background-color: #08D9D6;}"
-            ".btn-seed {height: 100px;}"
+            ".btn-refresh {height: 100px;}"
             ".txt-chat-input {height: 150px; max_height: 150px;}"
 ) as demo:
     # 标题
@@ -167,13 +249,24 @@ with gr.Blocks(
         with gr.Column(scale=1):
             submit_btn = gr.Button("提交", variant="primary", scale=1, elem_classes="btn-submit")
             stop_btn = gr.Button("中止", scale=1, elem_classes="btn-normal")
-        with gr.Column(scale=1, min_width=50):
-            clear_btn = gr.Button("清除历史", scale=1, elem_classes="btn-normal")
-            save_btn = gr.Button("保存历史", scale=1, elem_classes="btn-normal")
-            load_btn = gr.UploadButton("读取历史", file_types=[".json"], scale=1, elem_classes="btn-normal")
 
     # 文件保存组件
     file_save = gr.File(visible=False)
+
+    # 历史清单
+    with gr.Accordion("历史清单", open=False):
+        gr.HTML("<p align='left' style='color: #08D9D6;'>“历史清单”允许你查看和管理以前的对话历史。\n"
+                "点击“刷新历史记录”可以重新加载历史清单，通过选择历史清单来加载历史。"
+                "凡按下“保存历史”、“刷新历史记录”都会清除当前对话历史。</h1>")
+        with gr.Row():
+            prefix_input = gr.Textbox(label="历史文件前缀", value="HistoryFile", placeholder="请输入保存历史文件的前缀",
+                                      lines=1, max_lines=1, container=False)
+            save_btn = gr.Button("保存历史", elem_classes="btn-normal")
+            load_btn = gr.UploadButton("读取历史", file_types=[".json"], elem_classes="btn-normal")
+            open_folder_btn = gr.Button("打开历史文件夹", elem_classes="btn-normal")
+        with gr.Row():
+            history_dropdown = gr.Dropdown(choices=["无"], value="无", label="选择历史文件", scale=3)
+            refresh_btn = gr.Button("刷新历史目录 & 清除历史", elem_classes="btn-refresh", scale=1)
 
     # 模型配置
     with gr.Accordion("模型配置", open=False):
@@ -188,7 +281,8 @@ with gr.Blocks(
         with gr.Row():
             seed = gr.Number(value=configs['options']['seed'], label="Seed",
                              info="seed是使用固定种子，-1为使用随机种子。", scale=5)
-            random_seed_btn = gr.Button("随机", scale=1, elem_classes="btn-seed")
+            random_seed_btn = gr.Button("随机", scale=1, elem_classes="btn-refresh")
+
 
     # 交互逻辑
     def respond(user_input, chat_history):
@@ -201,12 +295,14 @@ with gr.Blocks(
                 chat_history[-1]["content"] = response  # 更新助手响应
             yield chat_history
 
-
+    # 交互逻辑
     submit_btn.click(respond, [msg, chatbot], [chatbot])
     stop_btn.click(stop_generation_fn, None, None)
-    clear_btn.click(model_history_restart, None, [chatbot])
-    save_btn.click(save_history, None, [file_save])
+    save_btn.click(save_history_with_prefix, prefix_input, [file_save]).then(refresh_history_files, None, [history_dropdown])
     load_btn.upload(load_history, load_btn, [chatbot])
+    refresh_btn.click(refresh_history_files, None, [history_dropdown]).then(load_history_from_dropdown, history_dropdown, [chatbot])
+    history_dropdown.change(load_history_from_dropdown, history_dropdown, [chatbot])
+    open_folder_btn.click(open_history_folder, None, None)
     temperature.change(update_config, [temperature, top_k, top_p, repeat_penalty, seed], None)
     top_k.change(update_config, [temperature, top_k, top_p, repeat_penalty, seed], None)
     top_p.change(update_config, [temperature, top_k, top_p, repeat_penalty, seed], None)
@@ -216,6 +312,7 @@ with gr.Blocks(
 
     # 页面加载时清除历史
     demo.load(model_history_restart, None, [chatbot])
+
 
 # 入口函数
 if __name__ == '__main__':
